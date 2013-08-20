@@ -16,16 +16,19 @@ import re
 # - = volume down
 # = = volume up
 
-#os.chdir('/Users/willkalb/Dropbox')
 ssh = paramiko.SSHClient()
+
+# Get server and login information
 server = raw_input('Server: ')
 user = raw_input('Username: ')
 passwd = raw_input('Password: ')
+
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect(server, username=user, password=passwd)
 filepath = '/music/'
 playpath = ''
 message = ''
+mode = 'files' # Either 'files' for viewing files or 'queue' for viewing queue.
 volume = 0
 stdin, stdout, stderr = ssh.exec_command('cd ' + filepath + '; ls -F | sort -f')
 #print stdout.read()
@@ -56,17 +59,17 @@ def fileprint(s,l,w,c,m):
     for x in range((s*l), ((s+1)*l)):
         if x==c and x<length:
             q = x
-            if len(fileList[x]) > w:
+            if len(fileList[x]) > w-2:
                 print '> ' + fileList[x][:w-5] + '...'
             else:
                 print '> ' + fileList[x]
         elif x < length:
-            if len(fileList[x]) > w:
-                print '  ' + fileList[x][:w-5] +'...'
+            if len(fileList[x]) > w-2:
+                print '  ' + fileList[x][:w-5] + '...'
             else:
                 print '  ' + fileList[x]
         else:
-            print '-'
+            print '  -'
     print '----------------'
     if len(m) > w:
         print m[:w-3] +'...'
@@ -99,6 +102,7 @@ fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('
 
 # Main loop.  Listens for keypresses and takes actions
 # Eventually, keypresses will be replaced with GPIO
+#try:
 while 1:
 
     # Case wherein the items in the directory all fit on one screen
@@ -111,6 +115,7 @@ while 1:
     if typed == 'q':
         ssh.close()
         stdin.flush()
+        stdout.flush()
         break
     # Scroll down
     elif typed == 'k':
@@ -129,14 +134,15 @@ while 1:
                 cursor = windowLength-1
     # Select
     elif typed == 'l':
-        if fileList[cursor+steps*windowLength].endswith('/'):
-            filepath += fileList[cursor+steps*windowLength]
-            stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
-            fileList = stdout.read().splitlines()
-            cursor = 0
-            steps = 0
-            windowLength = rows-3
-            message = filepath.rsplit('/', 2)[1]
+        if len(fileList) > 0:
+            if fileList[cursor+steps*windowLength].endswith('/'):
+                filepath += fileList[cursor+steps*windowLength]
+                stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
+                fileList = stdout.read().splitlines()
+                cursor = 0
+                steps = 0
+                windowLength = rows-3
+                message = filepath.rsplit('/', 2)[1]
     # Up one directory
     elif typed == 'h':
         if filepath != '/music/':
@@ -187,14 +193,34 @@ while 1:
     # Volume up
     elif typed == '=':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
-   #     message = stdout.read().split(' ')[0]
+        #message = stdout.read().split(' ')[0]
         volume = int(stdout.read().split(' ')[0])
         if volume < 180:
             volume = str(volume + 5)
-           # message = 'Volume = ' + volume
+            #message = 'Volume = ' + volume
             stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
             stdin, stdout, stderr = ssh.exec_command('volume-get')
             message = stdout.read().split(' ')[0]
+    # Show queue
+    elif typed == 'c':
+        if mode == 'files':
+            stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
+            fileList = stdout.read().splitlines()
+            cursor = 0
+            steps = 0
+            windowLength = rows-3
+            message = 'Upcoming songs'
+            mode = 'queue'
+        else:
+            stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
+            fileList = stdout.read().splitlines()
+            mode = 'files'
+            message = filepath.rsplit('/', 2)[1]
     os.system('clear')
     windowLength = rows-3
     fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#except:
+#    print 'Something went wrong. :('
+#    ssh.close()
+#    stdin.flush()
+#    stdout.flush()
