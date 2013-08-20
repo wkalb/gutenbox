@@ -52,8 +52,6 @@ cursor = 0
 # m = message at bottom of screen
 def fileprint(s,l,w,c,m):
     length = len(fileList)
-   # if length < l:
-   #     l=length
     q = 0
     for x in range((s*l), ((s+1)*l)):
         if x==c and x<length:
@@ -64,9 +62,9 @@ def fileprint(s,l,w,c,m):
                 print '> ' + fileList[x]
         elif x < length:
             if len(fileList[x]) > w:
-                print fileList[x][:w-3] +'...'
+                print '  ' + fileList[x][:w-5] +'...'
             else:
-                print fileList[x]
+                print '  ' + fileList[x]
         else:
             print '-'
     print '----------------'
