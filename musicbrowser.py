@@ -11,14 +11,22 @@ import re
 # h = go back
 # } = page down
 # [ = page up
+# p = print song or directory
+# e = end song
+# - = volume down
+# = = volume up
 
 #os.chdir('/Users/willkalb/Dropbox')
 ssh = paramiko.SSHClient()
+server = raw_input('Server: ')
+user = raw_input('Username: ')
+passwd = raw_input('Password: ')
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('example.com', username='your_username', password='your_password')
+ssh.connect(server, username=user, password=passwd)
 filepath = '/music/'
 playpath = ''
 message = ''
+volume = 0
 stdin, stdout, stderr = ssh.exec_command('cd ' + filepath + '; ls -F | sort -f')
 #print stdout.read()
 
@@ -165,6 +173,30 @@ while 1:
     elif typed == 'e':
         stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
         message = 'Stopping current song'
+    # Volume down
+    elif typed == '-':
+        stdin, stdout, stderr = ssh.exec_command('volume-get')
+   #     message = stdout.read().split(' ')[0]                                                                                        
+        volume = int(stdout.read().split(' ')[0])
+        if volume > 5:
+            volume = str(volume - 5)
+           # message = 'Volume = ' + volume                                                                                          
+        else:
+            volume = str(0)
+        stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
+        stdin, stdout, stderr = ssh.exec_command('volume-get')
+        message = stdout.read().split(' ')[0]
+    # Volume up
+    elif typed == '=':
+        stdin, stdout, stderr = ssh.exec_command('volume-get')
+   #     message = stdout.read().split(' ')[0]
+        volume = int(stdout.read().split(' ')[0])
+        if volume < 180:
+            volume = str(volume + 5)
+           # message = 'Volume = ' + volume
+            stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
+            stdin, stdout, stderr = ssh.exec_command('volume-get')
+            message = stdout.read().split(' ')[0]
     os.system('clear')
     windowLength = rows-3
     fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
