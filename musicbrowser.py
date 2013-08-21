@@ -186,8 +186,18 @@ while 1:
             message = playpath #'Playing: ' + fileList[cursor+steps*windowLength]
     # End a song
     elif typed == 'e':
-        stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
-        message = 'Stopping current song'
+        if mode == 'files':
+            stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
+            message = 'Stopping current song'
+        elif mode == 'queue':
+            songtokill = fileList[cursor+steps*windowLength]
+            songtokill = songtokill.split()[2]
+            stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3 ' + songtokill)
+            stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
+            fileList = stdout.read().splitlines()[2:]
+            cursor = 0
+            steps = 0
+            message = 'Stopping selected song'
     # Volume down
     elif typed == '-':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
@@ -216,7 +226,10 @@ while 1:
     elif typed == 'c':
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
-            fileList = stdout.read().splitlines()
+            fileList = stdout.read().splitlines()[2:]
+            prevcursor.extend([cursor])
+            prevsteps.extend([steps])
+            depth += 1
             cursor = 0
             steps = 0
             windowLength = rows-3
@@ -225,6 +238,11 @@ while 1:
         else:
             stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
             fileList = stdout.read().splitlines()
+            cursor = prevcursor[depth]
+            steps = prevsteps[depth]
+            prevcursor = prevcursor[:depth]
+            prevsteps = prevsteps[:depth]
+            depth -= 1            
             mode = 'files'
             message = filepath.rsplit('/', 2)[1]
     os.system('clear')
