@@ -4,6 +4,11 @@ import termios
 import sys
 import paramiko
 import re
+import RPi.GPIO as GPIO
+import time
+import math
+from datetime import datetime
+from datetime import timedelta
 
 # j = scroll down
 # k = scroll up
@@ -15,6 +20,30 @@ import re
 # e = end song
 # - = volume down
 # = = volume up
+# c = queue
+
+# GPIO pins.  There are only eight pins, so volume controls
+# work on two pins being activated at once.  Page up and 
+# page down work by holding scrollup and scrolldown for a long
+# button press.
+
+# The pin numbers for the eight GPIO pins
+pins = [4,17,21,22,18,23,24,25]
+scrolldown = 0
+scrollup = 1
+enter = 2
+back = 3
+play = 4
+kill = 5
+voldown = 6
+volup = 7
+queue = [6,7]
+
+keypressed = False
+GPIO.setmode(GPIO.BOARD)
+for x in range(0, len(pins)):
+    GPIO.setup(pins(x), GPIO.IN)
+
 
 ssh = paramiko.SSHClient()
 
@@ -51,6 +80,21 @@ prevcursor = [0]
 #print rows
 #print fileList
 
+timeopen = millis()
+timeclosed = 0
+input = []
+previnput = []
+currenttime = 0
+starttime = datetime.now()
+#charTyped = 0
+#keyString = ''
+
+# Time in milliseconds since an event. Used to determine long vs. short
+# button presses.
+def millis():
+   dt = datetime.now() - startTime
+   ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+   return ms
 
 # Prints out the contents of a directory that will fit in one terminal window
 # s = number of steps of the size of the terminal window
@@ -105,16 +149,70 @@ def getch():
 os.system('clear')
 fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
 
+# Initialize the input string.  For the eight keypresses, 0 is unpressed
+# and 1 is pressed.
+for x in range (0, len(pins)):
+    input.extend([0])
+    previnput.extend([0])
+
 # Main loop.  Listens for keypresses and takes actions
 # Eventually, keypresses will be replaced with GPIO
 #try:
 while 1:
 
+    for x in range (0, len(pins)):
+        input[x]=GPIO.input(pins[x])
+        
+        # When key toggles from open to closed
+        if ((not prevInput[x]) and input[x]):
+            keypressed = True
+            timeclosed = millis()
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+        # When key toggles from closed to open
+        if (prevInput and (not input)):
+            #keypressed = True
+            #timeopen = millis()
+        if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
+            if (millis()-timeclosed > 500): # long button press
+                if input(scrolldown):
+                    typed = 'pagedown'
+                    keypressed = False
+                elif input(scrollup):
+                    typed = 'pageup'
+                    keypressed = False
+            if input(volup) and input(voldown):
+                typed = 'queue'
+                keypressed = False
+            elif input(pagedown):
+                typed = 'pagedown'
+                keypressed = False
+            elif input(pageup):
+                typed = 'pageup'
+                keypressed = False
+            elif input(enter):
+                typed = 'enter'
+                keypressed = False
+            elif input(kill):
+                typed = 'kill'
+                keypressed = False
+            elif input(print):
+                typed = 'print'
+                keypressed = False
+            elif input(volup):
+                typed = 'volup'
+                keypressed = False
+            elif input(voldown):
+                typed = 'voldown'
+                keypressed = False
+
     # Case wherein the items in the directory all fit on one screen
     if len(fileList)<windowLength:
         windowLength = len(fileList)
+    
+    for x in range (0, len(pins)):
+        previnput[x]=input[x]
     # Get the typed character
-    typed = getch()
+    #typed = getch()
     
     # Quit
     if typed == 'q':
@@ -123,14 +221,14 @@ while 1:
         stdout.flush()
         break
     # Scroll down
-    elif typed == 'k':
+    elif typed == 'scrolldown':
         if cursor < windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             cursor+=1
         elif cursor == windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             steps+=1
             cursor = 0
     # Scroll up
-    elif typed == 'j':
+    elif typed == 'scrollup':
         if cursor > 0:
             cursor-=1
         elif cursor == 0:
@@ -138,7 +236,7 @@ while 1:
                 steps-=1
                 cursor = windowLength-1
     # Select
-    elif typed == 'l':
+    elif typed == 'enter':
         if len(fileList) > 0:
             if fileList[cursor+steps*windowLength].endswith('/'):
                 filepath += fileList[cursor+steps*windowLength]
@@ -152,7 +250,7 @@ while 1:
                 windowLength = rows-3
                 message = filepath.rsplit('/', 2)[1]
     # Up one directory
-    elif typed == 'h':
+    elif typed == 'back':
         if filepath != '/music/':
             filepath = filepath.rsplit('/', 2)[0] + '/'
             stdin, stdout, stderr = ssh.exec_command('cd ' +re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1', filepath) + '; ls -F | sort -f')
@@ -165,17 +263,17 @@ while 1:
             windowLength = rows-3
             message = filepath.rsplit('/', 2)[1]
     # Page down
-    elif typed == ']':
+    elif typed == 'pagedown':
         if (steps+1)*windowLength < len(fileList): 
             steps+=1
             cursor = 0
     # Page up
-    elif typed == '[':
+    elif typed == 'pageup':
         if (steps-1)*windowLength >= 0:
             steps-=1
             cursor = 0
     # Play song or directory
-    elif typed == 'p':
+    elif typed == 'print':
         if fileList[cursor+steps*windowLength].endswith('/'):
             playpath = filepath + fileList[cursor+steps*windowLength]           
             stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath) +'; for i in *.mp3; do lpr -Pbhmp3 "$i" ; done ; for j in *.m4a; do lpr -Pbhmp3 "$j" ; done')
@@ -185,7 +283,7 @@ while 1:
             stdin, stdout, stderr = ssh.exec_command('lpr -Pbhmp3 ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath))
             message = playpath #'Playing: ' + fileList[cursor+steps*windowLength]
     # End a song
-    elif typed == 'e':
+    elif typed == 'kill':
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
             message = 'Stopping current song'
@@ -199,7 +297,7 @@ while 1:
             steps = 0
             message = 'Stopping selected song'
     # Volume down
-    elif typed == '-':
+    elif typed == 'voldown':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
    #     message = stdout.read().split(' ')[0]                                                                                        
         volume = int(stdout.read().split(' ')[0])
@@ -212,7 +310,7 @@ while 1:
         stdin, stdout, stderr = ssh.exec_command('volume-get')
         message = stdout.read().split(' ')[0]
     # Volume up
-    elif typed == '=':
+    elif typed == 'volup':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
         #message = stdout.read().split(' ')[0]
         volume = int(stdout.read().split(' ')[0])
@@ -223,7 +321,7 @@ while 1:
             stdin, stdout, stderr = ssh.exec_command('volume-get')
             message = stdout.read().split(' ')[0]
     # Show queue
-    elif typed == 'c':
+    elif typed == 'queue':
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
             fileList = stdout.read().splitlines()[2:]
@@ -247,7 +345,7 @@ while 1:
             message = filepath.rsplit('/', 2)[1]
     os.system('clear')
     windowLength = rows-3
-    fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+    
 #except:
 #    print 'Something went wrong. :('
 #    ssh.close()
