@@ -39,10 +39,15 @@ rows, cols = os.popen('stty size', 'r').read().split()
 rows = int(rows)
 windowLength = rows-3
 columns = int(cols)
-#steps = raw_input('Steps? ')
-#steps = int(steps)
+
 steps = 0
 cursor = 0
+
+# Remembered values for going up one directory
+depth = 0
+
+prevsteps = [0]
+prevcursor = [0]
 #print rows
 #print fileList
 
@@ -139,6 +144,9 @@ while 1:
                 filepath += fileList[cursor+steps*windowLength]
                 stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
                 fileList = stdout.read().splitlines()
+                prevcursor.extend([cursor])
+                prevsteps.extend([steps])
+                depth += 1
                 cursor = 0
                 steps = 0
                 windowLength = rows-3
@@ -147,12 +155,15 @@ while 1:
     elif typed == 'h':
         if filepath != '/music/':
             filepath = filepath.rsplit('/', 2)[0] + '/'
-        stdin, stdout, stderr = ssh.exec_command('cd ' +re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1', filepath) + '; ls -F | sort -f')
-        fileList = stdout.read().splitlines()
-        cursor = 0
-        steps = 0
-        windowLength = rows-3
-        message = filepath.rsplit('/', 2)[1]
+            stdin, stdout, stderr = ssh.exec_command('cd ' +re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1', filepath) + '; ls -F | sort -f')
+            fileList = stdout.read().splitlines()
+            cursor = prevcursor[depth]
+            steps = prevsteps[depth]
+            prevcursor = prevcursor[:depth]
+            prevsteps = prevsteps[:depth]
+            depth -= 1
+            windowLength = rows-3
+            message = filepath.rsplit('/', 2)[1]
     # Page down
     elif typed == ']':
         if (steps+1)*windowLength < len(fileList): 
