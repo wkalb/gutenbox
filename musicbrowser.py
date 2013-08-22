@@ -28,7 +28,7 @@ from datetime import timedelta
 # button press.
 
 # The pin numbers for the eight GPIO pins
-pins = [4,17,21,22,18,23,24,25]
+pins = [4,17,27,22,18,23,24,25]
 scrolldown = 0
 scrollup = 1
 enter = 2
@@ -40,9 +40,11 @@ volup = 7
 queue = [6,7]
 
 keypressed = False
-GPIO.setmode(GPIO.BOARD)
+scrolling = False
+GPIO.setmode(GPIO.BCM)
 for x in range(0, len(pins)):
-    GPIO.setup(pins(x), GPIO.IN)
+    print pins[x]
+    GPIO.setup(pins[x], GPIO.IN)
 
 
 ssh = paramiko.SSHClient()
@@ -80,7 +82,7 @@ prevcursor = [0]
 #print rows
 #print fileList
 
-timeopen = millis()
+
 timeclosed = 0
 input = []
 previnput = []
@@ -92,9 +94,11 @@ starttime = datetime.now()
 # Time in milliseconds since an event. Used to determine long vs. short
 # button presses.
 def millis():
-   dt = datetime.now() - startTime
+   dt = datetime.now() - starttime
    ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
    return ms
+
+timeopen = millis()
 
 # Prints out the contents of a directory that will fit in one terminal window
 # s = number of steps of the size of the terminal window
@@ -155,56 +159,97 @@ for x in range (0, len(pins)):
     input.extend([0])
     previnput.extend([0])
 
+
 # Main loop.  Listens for keypresses and takes actions
 # Eventually, keypresses will be replaced with GPIO
-#try:
-while 1:
+try:
+ while 1:
 
     for x in range (0, len(pins)):
         input[x]=GPIO.input(pins[x])
         
         # When key toggles from open to closed
-        if ((not prevInput[x]) and input[x]):
+        if ((not previnput[x]) and input[x]):
             keypressed = True
             timeclosed = millis()
-            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#            time.sleep(0.05)
+            #os.system('clear')
+#            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         # When key toggles from closed to open
-        if (prevInput and (not input)):
-            #keypressed = True
+        if (previnput and (not input)):
+            keypressed = False
+#            time.sleep(0.05)
             #timeopen = millis()
         if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
-            if (millis()-timeclosed > 500): # long button press
-                if input(scrolldown):
-                    typed = 'pagedown'
-                    keypressed = False
-                elif input(scrollup):
-                    typed = 'pageup'
-                    keypressed = False
-            if input(volup) and input(voldown):
-                typed = 'queue'
+            if input[volup] and input[voldown]:
+                parsebutton('queue')
+#                message = 'queue'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input(pagedown):
-                typed = 'pagedown'
+            elif input[back]:
+                parsebutton('back')
+#                message = 'back'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input(pageup):
-                typed = 'pageup'
+            elif input[scrolldown]:
+                parsebutton('scrolldown')
+#                message = 'scrolldown'
+                scrolling = True
+#                print(message)
                 keypressed = False
-            elif input(enter):
-                typed = 'enter'
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+            elif input[scrollup]:
+                parsebutton('scrollup')
                 keypressed = False
-            elif input(kill):
-                typed = 'kill'
+                scrolling = True
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                message = 'scrollup'
+#                print(message)
+            elif input[enter]:
+                parsebutton('enter')
+#                message = 'enter'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input(print):
-                typed = 'print'
+            elif input[kill]:
+                parsebutton('kill')
+#                message = 'kill'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input(volup):
-                typed = 'volup'
+            elif input[play]:
+                parsebutton('play')
+#                message = 'play'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input(voldown):
-                typed = 'voldown'
+            elif input[volup]:
+                parsebutton('volup')
+#                message = 'volup'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
+                keypressed = False
+            elif input[voldown]:
+                parsebutton('voldown')
+#                message = 'voldown'
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
 
+        elif (millis()-timeclosed > 500) and scrolling: # long button press                 
+            if input[scrolldown]:
+                parsebutton('pagedown')
+#                message = 'pagedown'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                scrolling = False
+            elif input[scrollup]:
+                parsebutton('pageup')
+#                message = 'pageup'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                scrolling = False
     # Case wherein the items in the directory all fit on one screen
     if len(fileList)<windowLength:
         windowLength = len(fileList)
@@ -213,15 +258,20 @@ while 1:
         previnput[x]=input[x]
     # Get the typed character
     #typed = getch()
-    
+except KeyboardInterrupt:
+    ssh.close()
+    stdin.flush()
+    stdout.flush()
+
+def parsebutton(typed):    
     # Quit
-    if typed == 'q':
-        ssh.close()
-        stdin.flush()
-        stdout.flush()
-        break
+#    if typed == 'q':
+#        ssh.close()
+#        stdin.flush()
+#        stdout.flush()
+#        break
     # Scroll down
-    elif typed == 'scrolldown':
+    if typed == 'scrolldown':
         if cursor < windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             cursor+=1
         elif cursor == windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
@@ -273,7 +323,7 @@ while 1:
             steps-=1
             cursor = 0
     # Play song or directory
-    elif typed == 'print':
+    elif typed == 'play':
         if fileList[cursor+steps*windowLength].endswith('/'):
             playpath = filepath + fileList[cursor+steps*windowLength]           
             stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath) +'; for i in *.mp3; do lpr -Pbhmp3 "$i" ; done ; for j in *.m4a; do lpr -Pbhmp3 "$j" ; done')
@@ -285,7 +335,7 @@ while 1:
     # End a song
     elif typed == 'kill':
         if mode == 'files':
-            stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
+            stdin, stdout, stderr = ssh.exec_command('su gutenbox; lprm -Pbhmp3')
             message = 'Stopping current song'
         elif mode == 'queue':
             songtokill = fileList[cursor+steps*windowLength]
@@ -314,7 +364,7 @@ while 1:
         stdin, stdout, stderr = ssh.exec_command('volume-get')
         #message = stdout.read().split(' ')[0]
         volume = int(stdout.read().split(' ')[0])
-        if volume < 180:
+        if volume < 100:
             volume = str(volume + 5)
             #message = 'Volume = ' + volume
             stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
@@ -343,9 +393,9 @@ while 1:
             depth -= 1            
             mode = 'files'
             message = filepath.rsplit('/', 2)[1]
-    os.system('clear')
+   # os.system('clear')
     windowLength = rows-3
-    
+#    typed = ''
 #except:
 #    print 'Something went wrong. :('
 #    ssh.close()
