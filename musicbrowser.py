@@ -148,6 +148,120 @@ def getch():
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
+    
+# Initialize the file list with cursor at top
+os.system('clear')
+fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
+
+# Initialize the input string.  For the eight keypresses, 0 is unpressed
+# and 1 is pressed.
+for x in range (0, len(pins)):
+    input.extend([0])
+    previnput.extend([0])
+
+
+# Main loop.  Listens for keypresses and takes actions
+# Eventually, keypresses will be replaced with GPIO
+try:
+ while 1:
+
+    for x in range (0, len(pins)):
+        input[x]=GPIO.input(pins[x])
+        
+        # When key toggles from open to closed
+        if ((not previnput[x]) and input[x]):
+            keypressed = True
+            timeclosed = millis()
+#            time.sleep(0.05)
+            #os.system('clear')
+#            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+        # When key toggles from closed to open
+        if (previnput and (not input)):
+            keypressed = False
+#            time.sleep(0.05)
+            #timeopen = millis()
+        if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
+            if input[volup] and input[voldown]:
+                parsebutton('queue')
+#                message = 'queue'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                keypressed = False
+            elif input[back]:
+                parsebutton('back')
+#                message = 'back'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                keypressed = False
+            elif input[scrolldown]:
+                parsebutton('scrolldown')
+#                message = 'scrolldown'
+                scrolling = True
+#                print(message)
+                keypressed = False
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+            elif input[scrollup]:
+                parsebutton('scrollup')
+                keypressed = False
+                scrolling = True
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                message = 'scrollup'
+#                print(message)
+            elif input[enter]:
+                parsebutton('enter')
+#                message = 'enter'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                keypressed = False
+            elif input[kill]:
+                parsebutton('kill')
+#                message = 'kill'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                keypressed = False
+            elif input[play]:
+                parsebutton('play')
+#                message = 'play'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                keypressed = False
+            elif input[volup]:
+                parsebutton('volup')
+#                message = 'volup'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
+                keypressed = False
+            elif input[voldown]:
+                parsebutton('voldown')
+#                message = 'voldown'
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
+                keypressed = False
+
+        elif (millis()-timeclosed > 500) and scrolling: # long button press                 
+            if input[scrolldown]:
+                parsebutton('pagedown')
+#                message = 'pagedown'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                scrolling = False
+            elif input[scrollup]:
+                parsebutton('pageup')
+#                message = 'pageup'
+#                print(message)
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+                scrolling = False
+    # Case wherein the items in the directory all fit on one screen
+    if len(fileList)<windowLength:
+        windowLength = len(fileList)
+    
+    for x in range (0, len(pins)):
+        previnput[x]=input[x]
+    # Get the typed character
+    #typed = getch()
+except KeyboardInterrupt:
+    ssh.close()
+    stdin.flush()
+    stdout.flush()
 
 def parsebutton(typed):    
     # Quit
@@ -157,10 +271,6 @@ def parsebutton(typed):
 #        stdout.flush()
 #        break
     # Scroll down
-        # Case wherein the items in the directory all fit on one screen
-    if len(fileList)<windowLength:
-        windowLength = len(fileList)
-    
     if typed == 'scrolldown':
         if cursor < windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             cursor+=1
@@ -285,119 +395,6 @@ def parsebutton(typed):
             message = filepath.rsplit('/', 2)[1]
    # os.system('clear')
     windowLength = rows-3
-    
-# Initialize the file list with cursor at top
-os.system('clear')
-fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
-
-# Initialize the input string.  For the eight keypresses, 0 is unpressed
-# and 1 is pressed.
-for x in range (0, len(pins)):
-    input.extend([0])
-    previnput.extend([0])
-
-
-# Main loop.  Listens for keypresses and takes actions
-# Eventually, keypresses will be replaced with GPIO
-try:
- while 1:
-
-    for x in range (0, len(pins)):
-        input[x]=GPIO.input(pins[x])
-        
-        # When key toggles from open to closed
-        if ((not previnput[x]) and input[x]):
-            keypressed = True
-            timeclosed = millis()
-#            time.sleep(0.05)
-            #os.system('clear')
-#            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-        # When key toggles from closed to open
-        if (previnput and (not input)):
-            keypressed = False
-#            time.sleep(0.05)
-            #timeopen = millis()
-        if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
-            if input[volup] and input[voldown]:
-                parsebutton('queue')
-#                message = 'queue'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                keypressed = False
-            elif input[back]:
-                parsebutton('back')
-#                message = 'back'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                keypressed = False
-            elif input[scrolldown]:
-                parsebutton('scrolldown')
-#                message = 'scrolldown'
-                scrolling = True
-#                print(message)
-                keypressed = False
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-            elif input[scrollup]:
-                parsebutton('scrollup')
-                keypressed = False
-                scrolling = True
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-#                message = 'scrollup'
-#                print(message)
-            elif input[enter]:
-                parsebutton('enter')
-#                message = 'enter'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                keypressed = False
-            elif input[kill]:
-                parsebutton('kill')
-#                message = 'kill'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                keypressed = False
-            elif input[play]:
-                parsebutton('play')
-#                message = 'play'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                keypressed = False
-            elif input[volup]:
-                parsebutton('volup')
-#                message = 'volup'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
-                keypressed = False
-            elif input[voldown]:
-                parsebutton('voldown')
-#                message = 'voldown'
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
-                keypressed = False
-
-        elif (millis()-timeclosed > 500) and scrolling: # long button press                 
-            if input[scrolldown]:
-                parsebutton('pagedown')
-#                message = 'pagedown'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                scrolling = False
-            elif input[scrollup]:
-                parsebutton('pageup')
-#                message = 'pageup'
-#                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
-                scrolling = False
-
-    for x in range (0, len(pins)):
-        previnput[x]=input[x]
-    # Get the typed character
-    #typed = getch()
-except KeyboardInterrupt:
-    ssh.close()
-    stdin.flush()
-    stdout.flush()
-
-
 #    typed = ''
 #except:
 #    print 'Something went wrong. :('
