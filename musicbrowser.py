@@ -38,7 +38,7 @@ kill = 5
 voldown = 6
 volup = 7
 queue = [6,7]
-
+typed = ''
 keypressed = False
 scrolling = False
 GPIO.setmode(GPIO.BCM)
@@ -107,6 +107,7 @@ timeopen = millis()
 # c = position of cursor
 # m = message at bottom of screen
 def fileprint(s,l,w,c,m):
+    os.system('clear')
     length = len(fileList)
     q = 0
     for x in range((s*l), ((s+1)*l)):
@@ -150,7 +151,7 @@ def getch():
         return ch
     
 # Initialize the file list with cursor at top
-os.system('clear')
+
 fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
 
 # Initialize the input string.  For the eight keypresses, 0 is unpressed
@@ -159,18 +160,20 @@ for x in range (0, len(pins)):
     input.extend([0])
     previnput.extend([0])
 
+drawscreen = True
 
 # Main loop.  Listens for keypresses and takes actions
 # Eventually, keypresses will be replaced with GPIO
 try:
  while 1:
-
+     
     for x in range (0, len(pins)):
         input[x]=GPIO.input(pins[x])
         
         # When key toggles from open to closed
         if ((not previnput[x]) and input[x]):
             keypressed = True
+            drawscreen = True
             timeclosed = millis()
 #            time.sleep(0.05)
             #os.system('clear')
@@ -178,6 +181,7 @@ try:
         # When key toggles from closed to open
         if (previnput and (not input)):
             keypressed = False
+            drawscreen = True
 #            time.sleep(0.05)
             #timeopen = millis()
         if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
@@ -185,13 +189,13 @@ try:
                 typed = 'queue'
 #                message = 'queue'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[back]:
                 typed = 'back'
 #                message = 'back'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[scrolldown]:
                 typed = 'scrolldown'
@@ -199,56 +203,56 @@ try:
                 scrolling = True
 #                print(message)
                 keypressed = False
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
             elif input[scrollup]:
                 typed = 'scrollup'
                 keypressed = False
                 scrolling = True
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
 #                message = 'scrollup'
 #                print(message)
             elif input[enter]:
                 typed = 'enter'
 #                message = 'enter'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[kill]:
                 typed = 'kill'
 #                message = 'kill'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[play]:
                 typed = 'play'
 #                message = 'play'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[volup]:
                 typed = 'volup'
 #                message = 'volup'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
             elif input[voldown]:
                 typed = 'voldown'
 #                message = 'voldown'
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
 
         elif (millis()-timeclosed > 500) and scrolling: # long button press                 
             if input[scrolldown]:
-                typed = 'scrolldown'
+                typed = 'pagedown'
 #                message = 'pagedown'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 scrolling = False
             elif input[scrollup]:
-                typed = 'scrollup'
+                typed = 'pageup'
 #                message = 'pageup'
 #                print(message)
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+#                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 scrolling = False
     # Case wherein the items in the directory all fit on one screen
     if len(fileList)<windowLength:
@@ -270,17 +274,25 @@ try:
     if typed == 'scrolldown':
         if cursor < windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             cursor+=1
+            windowLength = rows - 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
         elif cursor == windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             steps+=1
             cursor = 0
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
     # Scroll up
     elif typed == 'scrollup':
         if cursor > 0:
             cursor-=1
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
         elif cursor == 0:
             if steps >0:
                 steps-=1
                 cursor = windowLength-1
+                windowLength = rows- 3
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
     # Select
     elif typed == 'enter':
         if len(fileList) > 0:
@@ -295,6 +307,7 @@ try:
                 steps = 0
                 windowLength = rows-3
                 message = filepath.rsplit('/', 2)[1]
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Up one directory
     elif typed == 'back':
         if filepath != '/music/':
@@ -308,16 +321,21 @@ try:
             depth -= 1
             windowLength = rows-3
             message = filepath.rsplit('/', 2)[1]
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Page down
     elif typed == 'pagedown':
         if (steps+1)*windowLength < len(fileList): 
             steps+=1
             cursor = 0
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Page up
     elif typed == 'pageup':
         if (steps-1)*windowLength >= 0:
             steps-=1
             cursor = 0
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Play song or directory
     elif typed == 'play':
         if fileList[cursor+steps*windowLength].endswith('/'):
@@ -328,11 +346,15 @@ try:
             playpath = filepath + fileList[cursor+steps*windowLength]
             stdin, stdout, stderr = ssh.exec_command('lpr -Pbhmp3 ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath))
             message = playpath #'Playing: ' + fileList[cursor+steps*windowLength]
+        windowLength = rows- 3
+        fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # End a song
     elif typed == 'kill':
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('su gutenbox; lprm -Pbhmp3')
             message = 'Stopping current song'
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         elif mode == 'queue':
             songtokill = fileList[cursor+steps*windowLength]
             songtokill = songtokill.split()[2]
@@ -342,6 +364,8 @@ try:
             cursor = 0
             steps = 0
             message = 'Stopping selected song'
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Volume down
     elif typed == 'voldown':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
@@ -355,6 +379,8 @@ try:
         stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
         stdin, stdout, stderr = ssh.exec_command('volume-get')
         message = stdout.read().split(' ')[0]
+        windowLength = rows- 3
+        fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Volume up
     elif typed == 'volup':
         stdin, stdout, stderr = ssh.exec_command('volume-get')
@@ -366,6 +392,8 @@ try:
             stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
             stdin, stdout, stderr = ssh.exec_command('volume-get')
             message = stdout.read().split(' ')[0]
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Show queue
     elif typed == 'queue':
         if mode == 'files':
@@ -379,6 +407,8 @@ try:
             windowLength = rows-3
             message = 'Upcoming songs'
             mode = 'queue'
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         else:
             stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
             fileList = stdout.read().splitlines()
@@ -389,9 +419,15 @@ try:
             depth -= 1            
             mode = 'files'
             message = filepath.rsplit('/', 2)[1]
+            windowLength = rows- 3
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
    # os.system('clear')
     windowLength = rows-3
     typed = ''
+   # if drawscreen:
+   #     fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
+   #     drawscreen = False
+
 except KeyboardInterrupt:
     ssh.close()
     stdin.flush()
