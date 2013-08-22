@@ -157,6 +157,10 @@ def parsebutton(typed):
 #        stdout.flush()
 #        break
     # Scroll down
+        # Case wherein the items in the directory all fit on one screen
+    if len(fileList)<windowLength:
+        windowLength = len(fileList)
+    
     if typed == 'scrolldown':
         if cursor < windowLength-1 and cursor + steps*windowLength < len(fileList)-1:
             cursor+=1
@@ -383,10 +387,7 @@ try:
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 scrolling = False
-    # Case wherein the items in the directory all fit on one screen
-    if len(fileList)<windowLength:
-        windowLength = len(fileList)
-    
+
     for x in range (0, len(pins)):
         previnput[x]=input[x]
     # Get the typed character
