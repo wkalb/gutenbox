@@ -182,70 +182,70 @@ try:
             #timeopen = millis()
         if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
             if input[volup] and input[voldown]:
-                parsebutton('queue')
+                typed = 'queue'
 #                message = 'queue'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[back]:
-                parsebutton('back')
+                typed = 'back'
 #                message = 'back'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[scrolldown]:
-                parsebutton('scrolldown')
+                typed = 'scrolldown'
 #                message = 'scrolldown'
                 scrolling = True
 #                print(message)
                 keypressed = False
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
             elif input[scrollup]:
-                parsebutton('scrollup')
+                typed = 'scrollup'
                 keypressed = False
                 scrolling = True
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
 #                message = 'scrollup'
 #                print(message)
             elif input[enter]:
-                parsebutton('enter')
+                typed = 'enter'
 #                message = 'enter'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[kill]:
-                parsebutton('kill')
+                typed = 'kill'
 #                message = 'kill'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[play]:
-                parsebutton('play')
+                typed = 'play'
 #                message = 'play'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
             elif input[volup]:
-                parsebutton('volup')
+                typed = 'volup'
 #                message = 'volup'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
             elif input[voldown]:
-                parsebutton('voldown')
+                typed = 'voldown'
 #                message = 'voldown'
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
 
         elif (millis()-timeclosed > 500) and scrolling: # long button press                 
             if input[scrolldown]:
-                parsebutton('pagedown')
+                typed = 'scrolldown'
 #                message = 'pagedown'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 scrolling = False
             elif input[scrollup]:
-                parsebutton('pageup')
+                typed = 'scrollup'
 #                message = 'pageup'
 #                print(message)
                 fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
@@ -258,12 +258,8 @@ try:
         previnput[x]=input[x]
     # Get the typed character
     #typed = getch()
-except KeyboardInterrupt:
-    ssh.close()
-    stdin.flush()
-    stdout.flush()
 
-def parsebutton(typed):    
+
     # Quit
 #    if typed == 'q':
 #        ssh.close()
@@ -395,7 +391,11 @@ def parsebutton(typed):
             message = filepath.rsplit('/', 2)[1]
    # os.system('clear')
     windowLength = rows-3
-#    typed = ''
+    typed = ''
+except KeyboardInterrupt:
+    ssh.close()
+    stdin.flush()
+    stdout.flush()
 #except:
 #    print 'Something went wrong. :('
 #    ssh.close()
