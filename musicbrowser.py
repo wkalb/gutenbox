@@ -49,10 +49,15 @@ for x in range(0, len(pins)):
 
 ssh = paramiko.SSHClient()
 
+f = open('login.txt','r')
+login = f.read().split(',')
 # Get server and login information
-server = raw_input('Server: ')
-user = raw_input('Username: ')
-passwd = raw_input('Password: ')
+server = login[0]#raw_input('Server: ')
+user = login[1]#raw_input('Username: ')
+passwd = login[2]#raw_input('Password: ')
+#print server
+#print user
+#print passwd
 
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect(server, username=user, password=passwd)
@@ -175,16 +180,12 @@ try:
             keypressed = True
             drawscreen = True
             timeclosed = millis()
-#            time.sleep(0.05)
-            #os.system('clear')
-#            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         # When key toggles from closed to open
         if (previnput and (not input)):
             keypressed = False
             drawscreen = True
-#            time.sleep(0.05)
             #timeopen = millis()
-        if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for debounce
+        if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for spring debounce
             if input[volup] and input[voldown]:
                 typed = 'queue'
 #                message = 'queue'
@@ -240,7 +241,9 @@ try:
 #                message = 'voldown'
 #                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
-
+        elif (millis()-timeclosed > 1500):
+            if input[kill]:
+                typed = 'killall'
         elif (millis()-timeclosed > 500) and scrolling: # long button press                 
             if input[scrolldown]:
                 typed = 'pagedown'
@@ -328,6 +331,7 @@ try:
             steps+=1
             cursor = 0
             windowLength = rows- 3
+            message = filepath.rsplit('/', 2)[1]
             fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Page up
     elif typed == 'pageup':
@@ -335,6 +339,7 @@ try:
             steps-=1
             cursor = 0
             windowLength = rows- 3
+            message = filepath.rsplit('/', 2)[1]
             fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Play song or directory
     elif typed == 'play':
@@ -344,11 +349,20 @@ try:
             message = 'Playing directory: ' + fileList[cursor+steps*windowLength]
         else:
             playpath = filepath + fileList[cursor+steps*windowLength]
-            stdin, stdout, stderr = ssh.exec_command('lpr -Pbhmp3 ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath))
-            message = playpath #'Playing: ' + fileList[cursor+steps*windowLength]
+            if playpath.endswith('mp3') or playpath.endswith('m4a'):
+                stdin, stdout, stderr = ssh.exec_command('lpr -Pbhmp3 ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath))
+                message = 'Adding to queue: ' + fileList[cursor+steps*windowLength]
         windowLength = rows- 3
         fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # End a song
+    elif typed == 'killall':
+        stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
+        for i in range(0, len(stdout.read().splitlines()[2:])):
+            stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
+            time.sleep(0.05)
+        message = 'Clearing queue'
+        windowLength = rows- 3
+        fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     elif typed == 'kill':
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('su gutenbox; lprm -Pbhmp3')
@@ -357,10 +371,15 @@ try:
             fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         elif mode == 'queue':
             songtokill = fileList[cursor+steps*windowLength]
-            songtokill = songtokill.split()[2]
+            songtokill = songtokill.split()[1]
             stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3 ' + songtokill)
+            #time.sleep(0.05)
             stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
             fileList = stdout.read().splitlines()[2:]
+            for i in range(0, len(fileList)):
+                killline = fileList[i].split()
+                killline = killline[0] + ' ' + killline[2] + ' ' + killline[3] + ' ' + killline[4] + ' ' + killline[5]
+                fileList[i] = killline
             cursor = 0
             steps = 0
             message = 'Stopping selected song'
@@ -399,6 +418,10 @@ try:
         if mode == 'files':
             stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
             fileList = stdout.read().splitlines()[2:]
+            for i in range(0, len(fileList)):
+                queueline = fileList[i].split()
+                queueline = queueline[0] + ' ' + queueline[2] + ' ' + queueline[3] + ' ' + queueline[4] + ' ' + queueline[5]
+                fileList[i] = queueline
             prevcursor.extend([cursor])
             prevsteps.extend([steps])
             depth += 1
