@@ -41,54 +41,71 @@ queue = [6,7]
 typed = ''
 keypressed = False
 scrolling = False
+
+# Set GPIO pins
 GPIO.setmode(GPIO.BCM)
 for x in range(0, len(pins)):
-    print pins[x]
+    #print pins[x]
     GPIO.setup(pins[x], GPIO.IN)
 
-
+# Activate ssh client
 ssh = paramiko.SSHClient()
 
-f = open('login.txt','r')
-login = f.read().split(',')
+# Get script file path
+#dn = os.path.dirname(os.path.realpath(__file__))
+
+# Open login file
+# The login file should have the format "server,username,password,printer queue"
+# Example: music.example.com,myuser,mypass,Pmyprinter
+try:
+    f = open('/home/pi/gutenbox/login.txt','r') # Change this to the relevant directory
+    login = f.read().split(',')
 # Get server and login information
-server = login[0]#raw_input('Server: ')
-user = login[1]#raw_input('Username: ')
-passwd = login[2]#raw_input('Password: ')
+    server = login[0]#raw_input('Server: ')
+    user = login[1]#raw_input('Username: ')
+    passwd = login[2]#raw_input('Password: ')
+    printer = login[3]
+except:
+    print 'Login file not found. Create a login.txt file in the musicbroswer.py directory'
+    print 'in the format: server,username,password,printer'
 #print server
 #print user
 #print passwd
 
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect(server, username=user, password=passwd)
+
+# Change the following line to the top directory of your music folders.
 filepath = '/music/'
+
 playpath = ''
-message = ''
+message = '' # Printed at the bottom of the screen following a button press.
 mode = 'files' # Either 'files' for viewing files or 'queue' for viewing queue.
 volume = 0
-stdin, stdout, stderr = ssh.exec_command('cd ' + filepath + '; ls -F | sort -f')
-#print stdout.read()
 
+# Initialize the list of files.
+stdin, stdout, stderr = ssh.exec_command('cd ' + filepath + '; ls -F | sort -f')
 fileList = stdout.read().splitlines()#sorted(glob.glob('*'),key=str.lower)
-#print fileList
+
+# Get size of terminal display.
 rows, cols = os.popen('stty size', 'r').read().split()
 rows = int(rows)
-windowLength = rows-3
+windowLength = rows-3 # Number of lines to display, taking into account 'message'
 columns = int(cols)
 
+# Place cursor at top of list to start
 steps = 0
 cursor = 0
 
-# Remembered values for going up one directory
+# Remembered values for going up one directory. Increments as you open directorys.
 depth = 0
 
+# Remembers your previous cursor position for going up a directory
 prevsteps = [0]
 prevcursor = [0]
-#print rows
-#print fileList
 
-
-timeclosed = 0
+# Button press variables.
+timeclosed = 0 # Time a button is held down. Useful for timing long vs short presses
 input = []
 previnput = []
 currenttime = 0
@@ -135,6 +152,7 @@ def fileprint(s,l,w,c,m):
     else:
         print m #filepath.rsplit('/', 2)[1] #filepath # + ' ' + str(len(fileList[q])) + ' ' + str(columns)
 
+# Obsolete method for getting keyboard input. Used for debugging.
 def getch():
         """getch() -> key character
 
@@ -155,20 +173,17 @@ def getch():
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
     
-# Initialize the file list with cursor at top
-
+# Print the starting directory file list with cursor at top
 fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
 
-# Initialize the input string.  For the eight keypresses, 0 is unpressed
-# and 1 is pressed.
+# Initialize the input string.  For the each button, 0 is unpressed and 1 is pressed.
 for x in range (0, len(pins)):
     input.extend([0])
     previnput.extend([0])
 
 drawscreen = True
 
-# Main loop.  Listens for keypresses and takes actions
-# Eventually, keypresses will be replaced with GPIO
+# Main loop.  Listens for button presses and takes actions
 try:
  while 1:
      
@@ -178,15 +193,15 @@ try:
         # When key toggles from open to closed
         if ((not previnput[x]) and input[x]):
             keypressed = True
-            drawscreen = True
+            #drawscreen = True
             timeclosed = millis()
         # When key toggles from closed to open
         if (previnput and (not input)):
             keypressed = False
-            drawscreen = True
+            #drawscreen = True
             #timeopen = millis()
         if (millis()-timeclosed > 20) and keypressed: # 20 milliseconds to account for spring debounce
-            if input[volup] and input[voldown]:
+            if input[volup] == 0 and input[voldown] == 0:
                 typed = 'queue'
 #                message = 'queue'
 #                print(message)
@@ -230,18 +245,18 @@ try:
 #                print(message)
 #                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
                 keypressed = False
-            elif input[volup]:
+            elif not input[volup]:
                 typed = 'volup'
 #                message = 'volup'
 #                print(message)
 #                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
-            elif input[voldown]:
+            elif not input[voldown]:
                 typed = 'voldown'
 #                message = 'voldown'
 #                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)  
                 keypressed = False
-        elif (millis()-timeclosed > 1500):
+        elif (millis()-timeclosed > 1500): # Long button press
             if input[kill]:
                 typed = 'killall'
         elif (millis()-timeclosed > 500) and scrolling: # long button press                 
@@ -283,23 +298,26 @@ try:
             steps+=1
             cursor = 0
             windowLength = rows- 3
-            fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
+            message = filepath.rsplit('/', 2)[1]
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Scroll up
     elif typed == 'scrollup':
         if cursor > 0:
             cursor-=1
             windowLength = rows- 3
-            fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
+            message = filepath.rsplit('/', 2)[1]
+            fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
         elif cursor == 0:
             if steps >0:
                 steps-=1
                 cursor = windowLength-1
                 windowLength = rows- 3
-                fileprint(steps,windowLength,columns,cursor+steps*windowLength,filepath.rsplit('/', 2)[1])
+                message = filepath.rsplit('/', 2)[1]
+                fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
     # Select
     elif typed == 'enter':
         if len(fileList) > 0:
-            if fileList[cursor+steps*windowLength].endswith('/'):
+            if fileList[cursor+steps*windowLength].endswith('/') and mode == 'files':
                 filepath += fileList[cursor+steps*windowLength]
                 stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',filepath) +'; ls -F | sort -f')
                 fileList = stdout.read().splitlines()
@@ -345,11 +363,11 @@ try:
     elif typed == 'play':
         if fileList[cursor+steps*windowLength].endswith('/'):
             playpath = filepath + fileList[cursor+steps*windowLength]           
-            stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath) +'; for i in *.mp3; do lpr -Pbhmp3 "$i" ; done ; for j in *.m4a; do lpr -Pbhmp3 "$j" ; done')
+            stdin, stdout, stderr = ssh.exec_command('cd ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath) +'; for i in *.mp3*; do lpr -Pbhmp3 "$i" ; done ; for j in *.m4a*; do lpr -Pbhmp3 "$j" ; done')
             message = 'Playing directory: ' + fileList[cursor+steps*windowLength]
         else:
             playpath = filepath + fileList[cursor+steps*windowLength]
-            if playpath.endswith('mp3') or playpath.endswith('m4a'):
+            if '.mp3' in playpath or'.m4a' in playpath:
                 stdin, stdout, stderr = ssh.exec_command('lpr -Pbhmp3 ' + re.sub(r'([^a-zA-Z0-9_.-])', r'\\\1',playpath))
                 message = 'Adding to queue: ' + fileList[cursor+steps*windowLength]
         windowLength = rows- 3
@@ -359,7 +377,7 @@ try:
         stdin, stdout, stderr = ssh.exec_command('lpq -Pbhmp3')
         for i in range(0, len(stdout.read().splitlines()[2:])):
             stdin, stdout, stderr = ssh.exec_command('lprm -Pbhmp3')
-            time.sleep(0.05)
+            time.sleep(0.1)
         message = 'Clearing queue'
         windowLength = rows- 3
         fileprint(steps,windowLength,columns,cursor+steps*windowLength,message)
@@ -405,7 +423,7 @@ try:
         stdin, stdout, stderr = ssh.exec_command('volume-get')
         #message = stdout.read().split(' ')[0]
         volume = int(stdout.read().split(' ')[0])
-        if volume < 100:
+        if volume < 100: # Set the maximum volume
             volume = str(volume + 5)
             #message = 'Volume = ' + volume
             stdin, stdout, stderr = ssh.exec_command('volume-set set ' + volume)
